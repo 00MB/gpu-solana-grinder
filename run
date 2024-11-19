@@ -1,3 +1,9 @@
 #!/bin/bash
 
+make clean
+
+export PATH=/usr/local/cuda/bin:$PATH
+
+make -j$(nproc)
+
 LD_LIBRARY_PATH=./src/release ./src/release/cuda_ed25519_vanity;
