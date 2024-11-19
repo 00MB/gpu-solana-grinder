@@ -234,13 +234,13 @@ void __global__ vanity_scan(curandState* state, int* keys_found, int* gpu, int* 
 
 	// SMITH - should really be passed in, but hey ho
     	int prefix_letter_counts[MAX_PATTERNS];
-    	for (unsigned int n = 0; n < sizeof(prefixes) / sizeof(prefixes[0]); ++n) {
+    	for (unsigned int n = 0; n < sizeof(suffixes) / sizeof(suffixes[0]); ++n) {
         	if ( MAX_PATTERNS == n ) {
             		printf("NEVER SPEAK TO ME OR MY SON AGAIN");
             		return;
         	}
         	int letter_count = 0;
-        	for(; prefixes[n][letter_count]!=0; letter_count++);
+        	for(; suffixes[n][letter_count]!=0; letter_count++);
         	prefix_letter_counts[n] = letter_count;
     	}
 
@@ -398,65 +398,31 @@ void __global__ vanity_scan(curandState* state, int* keys_found, int* gpu, int* 
 		// so it might make sense to write a new parallel kernel to do
 		// this.
 
-                for (int i = 0; i < sizeof(prefixes) / sizeof(prefixes[0]); ++i) {
-
-                        for (int j = 0; j<prefix_letter_counts[i]; ++j) {
-
-				// it doesn't match this prefix, no need to continue
-				if ( !(prefixes[i][j] == '?') && !(prefixes[i][j] == key[j]) ) {
-					break;
-				}
-
-                                // we got to the end of the prefix pattern, it matched!
-                                if ( j == ( prefix_letter_counts[i] - 1) ) {
-                                        atomicAdd(keys_found, 1);
-                                        //size_t pkeysize = 256;
-                                        //b58enc(pkey, &pkeysize, seed, 32);
-                                       
-				        // SMITH	
-					// The 'key' variable is the public key in base58 'address' format
-                                        // We display the seed in hex
-
-					// Solana stores the keyfile as seed (first 32 bytes)
-					// followed by public key (last 32 bytes)
-					// as an array of decimal numbers in json format
-
-                                        printf("GPU %d MATCH %s - ", *gpu, key);
-                                        for(int n=0; n<sizeof(seed); n++) { 
-						printf("%02x",(unsigned char)seed[n]); 
-					}
-					printf("\n");
-					
-                                        printf("[");
-					for(int n=0; n<sizeof(seed); n++) { 
-						printf("%d,",(unsigned char)seed[n]); 
-					}
-                                        for(int n=0; n<sizeof(publick); n++) {
-					        if ( n+1==sizeof(publick) ) {	
-							printf("%d",publick[n]);
-						} else {
-							printf("%d,",publick[n]);
-						}
-					}
-                                        printf("]\n");
-
-					/*
-					printf("Public: ");
-                                        for(int n=0; n<sizeof(publick); n++) { printf("%d ",publick[n]); }
-					printf("\n");
-					printf("Private: ");
-                                        for(int n=0; n<sizeof(privatek); n++) { printf("%d ",privatek[n]); }
-					printf("\n");
-					printf("Seed: ");
-                                        for(int n=0; n<sizeof(seed); n++) { printf("%d ",seed[n]); }
-					printf("\n");
-                                        */
-
-                                        break;
-				}
-
+                for (int i = 0; i < sizeof(suffixes) / sizeof(suffixes[0]); ++i) {
+                    int key_len = 0;
+                    while (key[key_len] != '\0') key_len++;
+                    
+                    int suffix_len = 0;
+                    while (suffixes[i][suffix_len] != '\0') suffix_len++;
+                    
+                    // Skip if key is shorter than suffix
+                    if (key_len < suffix_len) continue;
+                    
+                    bool match = true;
+                    for (int j = 0; j < suffix_len; ++j) {
+                        // Compare from the end
+                        if (suffixes[i][suffix_len - 1 - j] != '?' && 
+                            suffixes[i][suffix_len - 1 - j] != key[key_len - 1 - j]) {
+                            match = false;
+                            break;
                         }
-		}
+                    }
+                    
+                    if (match) {
+                        atomicAdd(keys_found, 1);
+                        break;
+                    }
+                }
 
 		// Code Until here runs at 22_000_000H/s. So the above is fast enough.
 
