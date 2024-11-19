@@ -1,6 +1,7 @@
 #include <vector>
 #include <random>
 #include <chrono>
+#include <fstream>
 
 #include <iostream>
 #include <ctime>
@@ -26,8 +27,18 @@
 /* -- Types ----------------------------------------------------------------- */
 
 typedef struct {
+	char public_key[256];
+	unsigned char seed[32];
+} MatchEntry;
+
+typedef struct {
 	// CUDA Random States.
 	curandState*    states[8];
+	// New members
+	MatchEntry* matches;      // Host array
+	MatchEntry* dev_matches;  // Device array
+	int* dev_match_count;     // Device counter
+	int max_matches;          // Maximum matches to store
 } config;
 
 /* -- Prototypes, Because C++ ----------------------------------------------- */
@@ -139,6 +150,30 @@ void vanity_setup(config &vanity) {
 	}
 
 	printf("END: Initializing Memory\n");
+
+	vanity.max_matches = 1000000;  // Adjust as needed
+	vanity.matches = new MatchEntry[vanity.max_matches];
+	cudaMalloc(&vanity.dev_matches, vanity.max_matches * sizeof(MatchEntry));
+	cudaMalloc(&vanity.dev_match_count, sizeof(int));
+}
+
+void write_matches_to_csv(const MatchEntry* matches, int count) {
+    std::ofstream csv("matches.csv", std::ios::app);  // Open in append mode
+    if (!csv.is_open()) {
+        printf("Error: Could not open matches.csv\n");
+        return;
+    }
+    
+    for (int i = 0; i < count; i++) {
+        const MatchEntry& entry = matches[i];
+        csv << entry.public_key << ",";
+        for (int j = 0; j < 32; j++) {
+            csv << std::hex << std::setw(2) << std::setfill('0') 
+                << static_cast<int>(entry.seed[j]);
+        }
+        csv << "\n";
+    }
+    csv.close();
 }
 
 void vanity_run(config &vanity) {
@@ -215,6 +250,15 @@ void vanity_run(config &vanity) {
                 	printf("Enough keys found, Done! \n");
 		        exit(0);	
 		}	
+
+		for (int g = 0; g < gpuCount; ++g) {
+			if (keys_found_this_iteration > 0) {
+				cudaMemcpy(vanity.matches, vanity.dev_matches, 
+						  keys_found_this_iteration * sizeof(MatchEntry), 
+						  cudaMemcpyDeviceToHost);
+				write_matches_to_csv(vanity.matches, keys_found_this_iteration);
+			}
+		}
 	}
 
 	printf("Iterations complete, Done!\n");
@@ -419,26 +463,18 @@ void __global__ vanity_scan(curandState* state, int* keys_found, int* gpu, int* 
                     }
                     
                     if (match) {
-                        atomicAdd(keys_found, 1);
-
-printf("GPU %d MATCH %s - ", *gpu, key);
-                                        for(int n=0; n<sizeof(seed); n++) { 
-						printf("%02x",(unsigned char)seed[n]); 
-					}
-					printf("\n");
-					
-                                        printf("[");
-					for(int n=0; n<sizeof(seed); n++) { 
-						printf("%d,",(unsigned char)seed[n]); 
-					}
-                                        for(int n=0; n<sizeof(publick); n++) {
-					        if ( n+1==sizeof(publick) ) {	
-							printf("%d",publick[n]);
-						} else {
-							printf("%d,",publick[n]);
-						}
-					}
-                                        printf("]\n");
+                        int match_idx = atomicAdd(keys_found, 1);
+                        if (match_idx < gridDim.x * blockDim.x) {  // Prevent buffer overflow
+                            MatchEntry* entry = &dev_matches[match_idx];
+                            strcpy(entry->public_key, key);
+                            memcpy(entry->seed, seed, sizeof(seed));
+                        }
+                        
+                        printf("GPU %d MATCH %s - ", *gpu, key);
+                        for(int n=0; n<sizeof(seed); n++) { 
+                            printf("%02x",(unsigned char)seed[n]); 
+                        }
+                        printf("\n");
                     }
                 }
 
