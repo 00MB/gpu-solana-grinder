@@ -9,9 +9,12 @@ __device__ const int ATTEMPTS_PER_EXECUTION = 100000;
 
 __device__ const int MAX_PATTERNS = 10;
 
-// exact matches at the end of the address, letter ? is wildcard
-__device__ static char const *suffixes[] = {
-	"moon",
+// exact matches at the start of the address
+__device__ static char const *prefixes[] = {
+	"martin",
+	"stijn",
+	"mikey",
+	"helio",
 };
 
 #endif

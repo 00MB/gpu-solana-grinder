@@ -234,13 +234,13 @@ void __global__ vanity_scan(curandState* state, int* keys_found, int* gpu, int* 
 
 	// SMITH - should really be passed in, but hey ho
     	int prefix_letter_counts[MAX_PATTERNS];
-    	for (unsigned int n = 0; n < sizeof(suffixes) / sizeof(suffixes[0]); ++n) {
+    	for (unsigned int n = 0; n < sizeof(prefixes) / sizeof(prefixes[0]); ++n) {
         	if ( MAX_PATTERNS == n ) {
             		printf("NEVER SPEAK TO ME OR MY SON AGAIN");
             		return;
         	}
         	int letter_count = 0;
-        	for(; suffixes[n][letter_count]!=0; letter_count++);
+        	for(; prefixes[n][letter_count]!=0; letter_count++);
         	prefix_letter_counts[n] = letter_count;
     	}
 
@@ -398,21 +398,17 @@ void __global__ vanity_scan(curandState* state, int* keys_found, int* gpu, int* 
 		// so it might make sense to write a new parallel kernel to do
 		// this.
 
-                for (int i = 0; i < sizeof(suffixes) / sizeof(suffixes[0]); ++i) {
-                    int key_len = 0;
-                    while (key[key_len] != '\0') key_len++;
+                for (int i = 0; i < sizeof(prefixes) / sizeof(prefixes[0]); ++i) {
+                    int prefix_len = 0;
+                    while (prefixes[i][prefix_len] != '\0') prefix_len++;
                     
-                    int suffix_len = 0;
-                    while (suffixes[i][suffix_len] != '\0') suffix_len++;
-                    
-                    // Skip if key is shorter than suffix
-                    if (key_len < suffix_len) continue;
+                    // Skip if key is shorter than prefix
+                    if (keysize < prefix_len) continue;
                     
                     bool match = true;
-                    for (int j = 0; j < suffix_len; ++j) {
-                        // Compare from the end
-                        if (suffixes[i][suffix_len - 1 - j] != '?' && 
-                            suffixes[i][suffix_len - 1 - j] != key[key_len - 1 - j]) {
+                    for (int j = 0; j < prefix_len; ++j) {
+                        if (prefixes[i][j] != '?' && 
+                            prefixes[i][j] != key[j]) {
                             match = false;
                             break;
                         }
@@ -421,23 +417,23 @@ void __global__ vanity_scan(curandState* state, int* keys_found, int* gpu, int* 
                     if (match) {
                         atomicAdd(keys_found, 1);
 
-printf("GPU %d MATCH %s - ", *gpu, key);
-                                        for(int n=0; n<sizeof(seed); n++) { 
-						printf("%02x",(unsigned char)seed[n]); 
-					}
-					printf("\n");
-					                                        printf("[");
-					for(int n=0; n<sizeof(seed); n++) { 
-						printf("%d,",(unsigned char)seed[n]); 
-					}
-                                        for(int n=0; n<sizeof(publick); n++) {
-					        if ( n+1==sizeof(publick) ) {	
-							printf("%d",publick[n]);
-						} else {
-							printf("%d,",publick[n]);
-						}
-					}
-                                        printf("]\n");
+                        printf("GPU %d MATCH %s - ", *gpu, key);
+                        for(int n=0; n<sizeof(seed); n++) { 
+                            printf("%02x",(unsigned char)seed[n]); 
+                        }
+                        printf("\n");
+                        printf("[");
+                        for(int n=0; n<sizeof(seed); n++) { 
+                            printf("%d,",(unsigned char)seed[n]); 
+                        }
+                        for(int n=0; n<sizeof(publick); n++) {
+                            if ( n+1==sizeof(publick) ) {    
+                                printf("%d",publick[n]);
+                            } else {
+                                printf("%d,",publick[n]);
+                            }
+                        }
+                        printf("]\n");
                     }
                 }
 
