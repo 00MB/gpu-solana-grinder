@@ -11,10 +11,7 @@ __device__ const int MAX_PATTERNS = 10;
 
 // exact matches at the start of the address
 __device__ static char const *prefixes[] = {
-	"martin",
-	"stijn",
-	"mikey",
-	"helio",
+	"moon",
 };
 
 #endif

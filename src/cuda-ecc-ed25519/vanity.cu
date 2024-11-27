@@ -43,9 +43,31 @@ bool __device__ b58enc(char* b58, size_t* b58sz, uint8_t* data, size_t binsz);
 int main(int argc, char const* argv[]) {
 	ed25519_set_verbose(true);
 
+	// Parse command line arguments
+	if (argc < 3) {
+		printf("Usage: %s <gpu_id> <num_iterations>\n", argv[0]);
+		return 1;
+	}
+
+	int gpu_id = atoi(argv[1]);
+	int num_iterations = atoi(argv[2]);
+
+	// Set GPU device
+	cudaError_t err = cudaSetDevice(gpu_id);
+	if (err != cudaSuccess) {
+		printf("Error setting GPU device %d: %s\n", gpu_id, cudaGetErrorString(err));
+		return 1;
+	}
+
 	config vanity;
 	vanity_setup(vanity);
-	vanity_run(vanity);
+	
+	// Run for specified number of iterations
+	for (int i = 0; i < num_iterations; i++) {
+		vanity_run(vanity);
+	}
+
+	return 0;
 }
 
 // SMITH
