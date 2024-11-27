@@ -95,6 +95,15 @@ $V/ecc_scan.o: $(addprefix $(ECC_DIR)/,vanity.cu ed25519.h)
 $V/$(ECC_SCAN_BIN): $V/ecc_scan.o $V/lib$(LIB).so
 	$(NVCC) $(CFLAGS) -L$V -l$(LIB) $< -o $@
 
+$V/ecc_scan.o: $(addprefix $(ECC_DIR)/,vanity.cu ed25519.h)
+	@mkdir -p $(@D)
+	$(NVCC) -rdc=true $(CFLAGS) -c $< -o $@
+
+$V/cuda_ed25519_vanity: $V/ecc_scan.o $V/lib$(LIB).so
+	$(NVCC) $(CFLAGS) -L$V -l$(LIB) $< -o $@
+
+all: $V/cuda_ed25519_vanity
+
 .PHONY:clean
 clean:
 	rm -rf $V

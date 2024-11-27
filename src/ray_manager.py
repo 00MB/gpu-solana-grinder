@@ -14,12 +14,11 @@ class GPUWorker:
     def run_vanity_mining(self, num_iterations: int = 1000) -> Dict:
         """Run vanity mining on a single GPU"""
         try:
-            # Run the CUDA program with specific GPU
-            cmd = ["./vanity", str(self.gpu_id), str(num_iterations)]
+            # Update path to binary
+            vanity_path = "./src/release/cuda_ed25519_vanity"
+            cmd = [vanity_path, str(self.gpu_id), str(num_iterations)]
             result = subprocess.run(cmd, capture_output=True, text=True)
             
-            # Parse output to get performance metrics
-            # This is a placeholder - modify based on actual output format
             return {
                 "gpu_id": self.gpu_id,
                 "iterations": num_iterations,
@@ -29,10 +28,10 @@ class GPUWorker:
             }
         except Exception as e:
             return {
-                "gpu_id": self.gpu_id,
+                "gpu_id": self.gpu_id, 
                 "error": str(e),
-                "success": False
-            }
+                    "success": False
+                }
 
 class RayManager:
     def __init__(self):
